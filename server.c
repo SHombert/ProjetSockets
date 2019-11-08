@@ -50,18 +50,15 @@ sockaddr_in adresse_client_courant;
       }
 
       pthread_t thread1_id;
-      if((int retour = pthread_create (& thread1_id, NULL, traitementConnexion, (void*)NULL))!=0){
+      int retour = pthread_create (& thread1_id, NULL, traitementConnexion, (void*)NULL))
+      if(retour != 0){
         perror ("Erreur lors de la création du thread");
         exit (1);
       }
 
-      pthread_join(my_thread,(void**)&valeur);
-      /* traitement du message */
-      printf("reception d'un message.\n");
+      pthread_join(thread1_id,(void**)NULL);
 
-      renvoi(nouv_socket_descriptor);
-
-      close(nouv_socket_descriptor);
+      close(new_socket);
     }
 
 
