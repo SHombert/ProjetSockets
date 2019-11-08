@@ -7,6 +7,7 @@ Serveur à lancer avant le client
 #include <sys/socket.h>
 #include <netdb.h>  /* pour hostent, servent */
 #include <string.h> /* pour bcopy, ... */
+#include <pthread.h> /* librairie threads */
 #define TAILLE_MAX_NOM 256
 
 typedef struct sockaddr sockaddr;
@@ -14,35 +15,61 @@ typedef struct sockaddr_in sockaddr_in;
 typedef struct hostent hostent;
 typedef struct servent servent;
 
-/*------------------------------------------------------*/
-void renvoi(int sock)
+/* Structure client connecté */
+struct chatClient
 {
+  char pseudo[15];
+  int  scoket;
+};
 
-  char buffer[256];
-  int longueur;
+/* Tableau de clients connectés */
+const int maxLogged = 150;
+int clients[maxLogged];
 
-  if ((longueur = read(sock, buffer, sizeof(buffer))) <= 0)
-    return;
 
-  printf("message lu : %s \n", buffer);
+void ecoute (int listeningSocket){
 
-  buffer[0] = 'R';
-  buffer[1] = 'E';
-  buffer[longueur] = '#';
-  buffer[longueur + 1] = '\0';
+int longueur_adresse_courante, 
+    new_socket;
+sockaddr_in adresse_client_courant;  
 
-  printf("message apres traitement : %s \n", buffer);
+  /* attente des connexions et traitement des donnees recues */
+  for (;;)
+    {
 
-  printf("renvoi du message traite.\n");
+      longueur_adresse_courante = sizeof(adresse_client_courant);
 
-  /* mise en attente du prgNouveau numéro de port : 5000ramme pour simuler un delai de transmission */
-  sleep(3);
+      /* adresse_client_courant sera renseignée par accept via les infos du connect */
+      if ((new_socket =
+              accept(listeningSocket,
+                      (sockaddr *)(&adresse_client_courant),
+                      &longueur_adresse_courante)) < 0)
+      {
+        perror("erreur : impossible d'accepter la connexion avec le client.");
+        exit(1);
+      }
 
-  write(sock, buffer, strlen(buffer) + 1);
+      pthread_t thread1_id;
+      if((int retour = pthread_create (& thread1_id, NULL, traitementConnexion, (void*)NULL))!=0){
+        perror ("Erreur lors de la création du thread");
+        exit (1);
+      }
 
-  printf("message envoye. \n");
+      pthread_join(my_thread,(void**)&valeur);
+      /* traitement du message */
+      printf("reception d'un message.\n");
 
-  return;
+      renvoi(nouv_socket_descriptor);
+
+      close(nouv_socket_descriptor);
+    }
+
+
+}
+
+void traitementConnexion (){
+
+
 }
 /*------------------------------------------------------*/
 
@@ -50,11 +77,10 @@ void renvoi(int sock)
 main(int argc, char **argv)
 {
 
-  int socket_descriptor,            /* descripteur de socket */
-      nouv_socket_descriptor,       /* [nouveau] descripteur de socket */
-      longueur_adresse_courante;    /* longueur d'adresse courante d'un client */
-  sockaddr_in adresse_locale,       /* structure d'adresse locale*/
-      adresse_client_courant;       /* adresse client courant */
+  int socket_descriptor;          /* descripteur de socket */
+
+  sockaddr_in adresse_locale;      /* structure d'adresse locale*/
+ 
   hostent *ptr_hote;                /* les infos recuperees sur la machine hote */
   servent *ptr_service;             /* les infos recuperees sur le service de la machine */
   char machine[TAILLE_MAX_NOM + 1]; /* nom de la machine locale */
@@ -102,32 +128,11 @@ main(int argc, char **argv)
 
   /* initialisation de la file d'ecoute */
   listen(socket_descriptor, 5);
+  
 
 /*-----------------------------------------------------------*/
+  ecoute(socket_descriptor);
 
-
-  /* attente des connexions et traitement des donnees recues */
-  for (;;)
-  {
-
-    longueur_adresse_courante = sizeof(adresse_client_courant);
-
-    /* adresse_client_courant sera renseigné par accept via les infos du connect */
-    if ((nouv_socket_descriptor =
-             accept(socket_descriptor,
-                    (sockaddr *)(&adresse_client_courant),
-                    &longueur_adresse_courante)) < 0)
-    {
-      perror("erreur : impossible d'accepter la connexion avec le client.");
-      exit(1);
-    }
-
-
-    /* traitement du message */
-    printf("reception d'un message.\n");
-
-    renvoi(nouv_socket_descriptor);
-
-    close(nouv_socket_descriptor);
-  }
+  
+  
 }
