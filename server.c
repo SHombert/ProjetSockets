@@ -20,26 +20,29 @@ typedef struct sockaddr sockaddr;
 typedef struct sockaddr_in sockaddr_in;
 typedef struct hostent hostent;
 typedef struct servent servent;
-typedef struct chatClient chatClient;
-
-/**** Declaration procédures *****/
-void ecoute();
-void *traitementConnexion();
-char *lecturePseudoBuffer(char buffer[]);
-
 
 /* Structure client connecté */
 
-
-struct chatClient
+typedef struct chatClient
 {
   char *pseudo;
   int  socket;
 };
 
+
+
+/**** Declaration procédures *****/
+void ecoute();
+void *traitementConnexion();
+char *lecturePseudoBuffer(char buffer[]);
+void ajouterClient(char *pseudo, int sock);
+void supprimerClient(int sock);
+
+
+
 /* Tableau de clients connectés */
 
-int clients[MAX_LOGGED];
+struct chatClient clients[MAX_LOGGED];
 int nbClientCo;
 
 void ecoute (int listeningSocket){
@@ -89,23 +92,25 @@ void *traitementConnexion (void *socket){
     char* pseudo;
     switch (type) {
 
-      case 0 :
+      case 0 : // Type = 0 : Connexion au serveur
         // if(nbClientCo =150) envoyer erreur
         if(nbClientCo < 150) {
-   pseudo = lecturePseudoBuffer(buffer);
-        // AJOUTER Client
-
+            pseudo = lecturePseudoBuffer(buffer);
+            ajouterClient(pseudo,sock);
         }
-     
-        // SUPPRIMER Client
-
-
         break;
-      case 1 : 
-break;
-      case 2 :
-break;
-      default :
+
+      case 1 : // Type = 1 : Envoi de message
+        //pseudo = lecturePseudoBuffer(buffer);
+
+
+      break;
+
+      case 2 : // Type = 2 : Déconnexion
+        supprimerClient (sock);
+        break;
+
+      default : // envoyer erreur
       break;
       
 
@@ -117,12 +122,12 @@ char *lecturePseudoBuffer(char buffer[]){
         char *result;
         result = malloc((15+1)*sizeof(char)); // allocation taille 15 caractère
         int i = 1;
-    while (buffer[i] != '\0' && buffer[i] != ' ' && i <= 14){
+        while (buffer[i] != '\0' && buffer[i] != ' ' && i <= 14){
 
-                result[i-1] = buffer[i];
-                ++i;
-                
-        }
+                    result[i-1] = buffer[i];
+                    ++i;
+                    
+            }
         result[i]="\0";
         return result;
 }
@@ -131,14 +136,36 @@ void ajouterClient(char *pseudo, int sock){
     struct chatClient newClient;
     newClient.pseudo = pseudo;
     newClient.socket = sock;
+    clients[nbClientCo]=newClient;
     ++ nbClientCo;
 }
 
+/** Tableau sans cade vide ==> on trouve le client à supprimer, et on décale tous les suivants d'un cran vers la gauche */
 void supprimerClient(int sock){
-
+    int indexClient=0;
+    int i=0;
+    int trouve=0;
+    while(!trouve && i<MAX_LOGGED){
+      if(clients[i].socket = sock){
+        trouve=1;
+        indexClient=i;
+        free(clients[i].pseudo);
+      } 
+      i++;
+    }
+    while(i<nbClientCo){
+      clients[i-1]=clients[i];
+    }
+    --nbClientCo;
 }
 
+int getClientSocket(char *pseudo){
+  int i=0;
 
+  while(clients[i].pseudo != ){
+
+  }
+}
 /*------------------------------------------------------*/
   main(int argc, char **argv){
   
