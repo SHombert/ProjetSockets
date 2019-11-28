@@ -5,33 +5,48 @@ Serveur à lancer avant le client
 #include <stdio.h>
 #include <linux/types.h> /* pour les sockets */
 #include <sys/socket.h>
+
 #include <netdb.h>  /* pour hostent, servent */
 #include <string.h> /* pour bcopy, ... */
 #include <pthread.h> /* librairie threads */
+
 #define TAILLE_MAX_NOM 256
+#define MAX_LOGGED 150
+
+
+
 
 typedef struct sockaddr sockaddr;
 typedef struct sockaddr_in sockaddr_in;
 typedef struct hostent hostent;
 typedef struct servent servent;
+typedef struct chatClient chatClient;
+
+/**** Declaration procédures *****/
+void ecoute();
+void *traitementConnexion();
+char *lecturePseudoBuffer(char buffer[]);
+
 
 /* Structure client connecté */
+
+
 struct chatClient
 {
-  char pseudo[15];
-  int  scoket;
+  char *pseudo;
+  int  socket;
 };
 
 /* Tableau de clients connectés */
-const int maxLogged = 150;
-int clients[maxLogged];
 
+int clients[MAX_LOGGED];
+int nbClientCo;
 
 void ecoute (int listeningSocket){
 
-int longueur_adresse_courante, 
-    new_socket;
-sockaddr_in adresse_client_courant;  
+  int longueur_adresse_courante, 
+      new_socket;
+  sockaddr_in adresse_client_courant;  
 
   /* attente des connexions et traitement des donnees recues */
   for (;;)
@@ -50,29 +65,84 @@ sockaddr_in adresse_client_courant;
       }
 
       pthread_t thread1_id;
-      int retour = pthread_create (& thread1_id, NULL, traitementConnexion, (void*)NULL))
+      // passer le socket en pointeur nul
+      int retour = pthread_create (& thread1_id, NULL, traitementConnexion, (void*) &new_socket);
       if(retour != 0){
         perror ("Erreur lors de la création du thread");
         exit (1);
       }
-
-      pthread_join(thread1_id,(void**)NULL);
-
-      close(new_socket);
+    
     }
 
+}
+
+void *traitementConnexion (void *socket){
+
+   int sock = *(int*)socket;
+    char buffer[256];
+    int longueur;
+   
+    if ((longueur = read(sock, buffer, sizeof(buffer))) <= 0) 
+    	return (NULL);
+    
+    int type = buffer[0];
+    char* pseudo;
+    switch (type) {
+
+      case 0 :
+        // if(nbClientCo =150) envoyer erreur
+        if(nbClientCo < 150) {
+   pseudo = lecturePseudoBuffer(buffer);
+        // AJOUTER Client
+
+        }
+     
+        // SUPPRIMER Client
+
+
+        break;
+      case 1 : 
+break;
+      case 2 :
+break;
+      default :
+      break;
+      
+
+    }
+    
+}
+
+char *lecturePseudoBuffer(char buffer[]){
+        char *result;
+        result = malloc((15+1)*sizeof(char)); // allocation taille 15 caractère
+        int i = 1;
+    while (buffer[i] != '\0' && buffer[i] != ' ' && i <= 14){
+
+                result[i-1] = buffer[i];
+                ++i;
+                
+        }
+        result[i]="\0";
+        return result;
+}
+
+void ajouterClient(char *pseudo, int sock){
+    struct chatClient newClient;
+    newClient.pseudo = pseudo;
+    newClient.socket = sock;
+    ++ nbClientCo;
+}
+
+void supprimerClient(int sock){
 
 }
 
-void traitementConnexion (){
-
-
-}
-/*------------------------------------------------------*/
 
 /*------------------------------------------------------*/
-main(int argc, char **argv)
-{
+  main(int argc, char **argv){
+  
+  nbClientCo = 0;
 
   int socket_descriptor;          /* descripteur de socket */
 
@@ -81,9 +151,6 @@ main(int argc, char **argv)
   hostent *ptr_hote;                /* les infos recuperees sur la machine hote */
   servent *ptr_service;             /* les infos recuperees sur le service de la machine */
   char machine[TAILLE_MAX_NOM + 1]; /* nom de la machine locale */
-
-
-/*-----------------------------------------------------------*/
 
   gethostname(machine, TAILLE_MAX_NOM); /* recuperation du nom de la machine */
 
