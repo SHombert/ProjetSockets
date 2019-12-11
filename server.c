@@ -25,10 +25,20 @@ typedef struct servent servent;
 
 typedef struct chatClient
 {
-  char *pseudo;
+  char pseudo[15];
   int  socket;
 };
 
+/* Structure messages */
+
+typedef struct msg
+{
+  int type;
+  char pseudo[15];
+  char message[255];
+};
+
+//read(descripteurSocket,(char* )&grille,sizeof(grille));
 
 
 /**** Declaration procédures *****/
@@ -37,8 +47,6 @@ void *traitementConnexion();
 char *lecturePseudoBuffer(char buffer[]);
 void ajouterClient(char *pseudo, int sock);
 void supprimerClient(int sock);
-
-
 
 /* Tableau de clients connectés */
 
@@ -82,27 +90,29 @@ void ecoute (int listeningSocket){
 void *traitementConnexion (void *socket){
 
    int sock = *(int*)socket;
-    char buffer[256];
+    struct msg buffer;
     int longueur;
    
-    if ((longueur = read(sock, buffer, sizeof(buffer))) <= 0) 
+    if ((longueur = read(sock, (char*) &buffer, sizeof(buffer))) <= 0) 
     	return (NULL);
     
-    int type = buffer[0];
-    char* pseudo;
-    switch (type) {
+    
+    //char* pseudo;
+    switch (buffer.type) {
 
       case 0 : // Type = 0 : Connexion au serveur
         // if(nbClientCo =150) envoyer erreur
         if(nbClientCo < 150) {
-            pseudo = lecturePseudoBuffer(buffer);
-            ajouterClient(pseudo,sock);
+            //pseudo = lecturePseudoBuffer(buffer);
+            ajouterClient(buffer.pseudo,sock);
+            //free(pseudo);
         }
         break;
 
       case 1 : // Type = 1 : Envoi de message
         //pseudo = lecturePseudoBuffer(buffer);
-
+        int sockDest = getClientSocket(buffer.pseudo);
+        
 
       break;
 
@@ -118,7 +128,7 @@ void *traitementConnexion (void *socket){
     
 }
 
-char *lecturePseudoBuffer(char buffer[]){
+/*char *lecturePseudoBuffer(char buffer[]){
         char *result;
         result = malloc((15+1)*sizeof(char)); // allocation taille 15 caractère
         int i = 1;
@@ -130,9 +140,9 @@ char *lecturePseudoBuffer(char buffer[]){
             }
         result[i]="\0";
         return result;
-}
+}*/
 
-void ajouterClient(char *pseudo, int sock){
+void ajouterClient(char pseudo[], int sock){
     struct chatClient newClient;
     newClient.pseudo = pseudo;
     newClient.socket = sock;
@@ -149,8 +159,7 @@ void supprimerClient(int sock){
       if(clients[i].socket = sock){
         trouve=1;
         indexClient=i;
-        free(clients[i].pseudo);
-      } 
+      }
       i++;
     }
     while(i<nbClientCo){
@@ -159,13 +168,20 @@ void supprimerClient(int sock){
     --nbClientCo;
 }
 
-int getClientSocket(char *pseudo){
+int getClientSocket(char pseudo[]){
   int i=0;
-
-  while(clients[i].pseudo != ){
-
+  int sockRes;
+  while(clients[i].pseudo != pseudo && i<nbClientCo){
+    ++i;
   }
+  if(i<nbClientCo){
+    sockRes=clients[i].socket;
+  }else{
+    sockRes=-1;
+  }
+  return sockRes;
 }
+
 /*------------------------------------------------------*/
   main(int argc, char **argv){
   
