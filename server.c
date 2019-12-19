@@ -26,7 +26,7 @@ typedef struct chatClient
   int  socket;
 };
 
-/* Structure message */
+/* Structure message standard*/
 
 typedef struct msg
 {
@@ -35,14 +35,22 @@ typedef struct msg
   char message[255];
 };
 
+/* Structure liste clients */
+
+typedef struct list 
+{
+  //char listePseudos[][];
+
+};
+
 //read(descripteurSocket,(char* )&grille,sizeof(grille));
 
 
 /**** Declaration procédures *****/
-void ecoute();
+void ecoute(int listeningSocket);
 void *traitementConnexion();
 char *lecturePseudoBuffer(char buffer[]);
-void ajouterClient(char *pseudo, int sock);
+int ajouterClient(char *pseudo, int sock);
 void supprimerClient(int sock);
 int getClientSocket(char pseudo[]);
 char *getClientPseudo(int sock);
@@ -98,9 +106,9 @@ void *traitementConnexion (void *socket){
 
    int sock = *(int*)socket;
     struct msg buffer, newBuffer;
-    int longueur, sockDest;
+    int longueur, sockDest, success;
    
-    if ((longueur = read(sock, (char*) &buffer, sizeof(buffer))) <= 0) 
+    if ((longueur = read(sock, (char*) &buffer, sizeof(buffer))) <= 0)
     	return (NULL);
     
     
@@ -113,10 +121,18 @@ void *traitementConnexion (void *socket){
        * Message -> vide
        */ 
       case 0 : 
-        // if(nbClientCo =150) envoyer erreur
         if(nbClientCo < 150) {
-            ajouterClient(buffer.pseudo,sock);
+          success = ajouterClient(buffer.pseudo,sock);
+          if (success == -1){ // Si pseudo deja utilise
+            newBuffer.type = 6;
+            write(sock,(char*) &newBuffer,sizeof(newBuffer));
+          }
+        }else{
+          // si taille max atteinte, envoie message erreur
+          newBuffer.type = 5;
+          write(sock,(char*) &newBuffer,sizeof(newBuffer));
         }
+      
         break;
 
       /**
@@ -124,13 +140,16 @@ void *traitementConnexion (void *socket){
        * Pseudo -> Pseudo du destinataire
        * Message -> message a envoyer
        */
-      
-      case 1 : 
+      case 1 :
 
         sockDest = getClientSocket(buffer.pseudo); // socket du destinataire
-        newBuffer.type = 1;
-        strcpy(newBuffer.pseudo, getClientPseudo(sock));
-        strcpy(newBuffer.message, buffer.message);
+        if(sockDest != -1) { // si pseudo trouve
+          newBuffer.type = 1;
+          strcpy(newBuffer.pseudo, getClientPseudo(sock));
+          strcpy(newBuffer.message, buffer.message);
+        }else{
+          newBuffer.type = 7; // sinon message erreur
+        }
         write(sockDest,(char*) &newBuffer,sizeof(newBuffer));
         break;
 
@@ -143,22 +162,36 @@ void *traitementConnexion (void *socket){
         supprimerClient (sock);
         break;
 
+      /**
+       * Type inconnu
+       * Envoie de message erreur
+       */
       default : 
-      // envoyer erreur
-      break;
-      
-
+        newBuffer.type = 8;
+        write(sockDest,(char*) &newBuffer,sizeof(newBuffer));
     }
     
 }
 
-/** Methode pour ajouter le client avec son socket et son pseudo dans la liste des clients connectes */
-void ajouterClient(char pseudo[], int sock){
-    struct chatClient newClient;
-    strcpy(newClient.pseudo,pseudo);
-    newClient.socket = sock;
-    clients[nbClientCo]=newClient;
-    ++ nbClientCo;
+/** 
+ * Methode pour ajouter le client avec son socket et son pseudo dans la liste des clients connectes 
+ * renvoie 0 si le client a bien ete ajoute, -1 sinon (ie. Le pseudo est deja utilise)
+*/
+int ajouterClient(char pseudo[], int sock){
+    int i=0;
+    while(clients[i].pseudo != pseudo && i<nbClientCo){
+      ++i;
+    }
+    if(i<nbClientCo){
+      struct chatClient newClient;
+      strcpy(newClient.pseudo,pseudo);
+      newClient.socket = sock;
+      clients[nbClientCo]=newClient;
+      ++ nbClientCo;
+      return 0;
+    }else{
+      return -1;
+    }
 }
 
 /** Tableau sans cade vide ==> on trouve le client à supprimer, et on décale tous les suivants d'un cran vers la gauche */
