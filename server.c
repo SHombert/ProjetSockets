@@ -13,9 +13,6 @@ Serveur à lancer avant le client
 #define TAILLE_MAX_NOM 256
 #define MAX_LOGGED 150
 
-
-
-
 typedef struct sockaddr sockaddr;
 typedef struct sockaddr_in sockaddr_in;
 typedef struct hostent hostent;
@@ -29,7 +26,7 @@ typedef struct chatClient
   int  socket;
 };
 
-/* Structure messages */
+/* Structure message */
 
 typedef struct msg
 {
@@ -47,11 +44,18 @@ void *traitementConnexion();
 char *lecturePseudoBuffer(char buffer[]);
 void ajouterClient(char *pseudo, int sock);
 void supprimerClient(int sock);
+int getClientSocket(char pseudo[]);
+char *getClientPseudo(int sock);
 
 /* Tableau de clients connectés */
 
 struct chatClient clients[MAX_LOGGED];
 int nbClientCo;
+
+/** 
+ * Methode en attente de connexion au serveur
+ * Creation d'un socket et d'un thread correspondant pour chaque connexion de client et appel a la methode thread de traitement des donnees
+ */
 
 void ecoute (int listeningSocket){
 
@@ -87,11 +91,14 @@ void ecoute (int listeningSocket){
 
 }
 
+/** 
+ * Traite les donnees selon le type du message envoye (premier champ de la structure du buffer)
+ */
 void *traitementConnexion (void *socket){
 
    int sock = *(int*)socket;
-    struct msg buffer;
-    int longueur;
+    struct msg buffer, newBuffer;
+    int longueur, sockDest;
    
     if ((longueur = read(sock, (char*) &buffer, sizeof(buffer))) <= 0) 
     	return (NULL);
@@ -100,27 +107,44 @@ void *traitementConnexion (void *socket){
     //char* pseudo;
     switch (buffer.type) {
 
-      case 0 : // Type = 0 : Connexion au serveur
+      /**
+       * Type = 0 : Connexion au serveur
+       * Pseudo -> Pseudo du client a ajouter dans la liste des clients connectes
+       * Message -> vide
+       */ 
+      case 0 : 
         // if(nbClientCo =150) envoyer erreur
         if(nbClientCo < 150) {
-            //pseudo = lecturePseudoBuffer(buffer);
             ajouterClient(buffer.pseudo,sock);
-            //free(pseudo);
         }
         break;
 
-      case 1 : // Type = 1 : Envoi de message
-        //pseudo = lecturePseudoBuffer(buffer);
-        int sockDest = getClientSocket(buffer.pseudo);
-        
+      /**
+       * Type = 1 : Envoi de message
+       * Pseudo -> Pseudo du destinataire
+       * Message -> message a envoyer
+       */
+      
+      case 1 : 
 
-      break;
+        sockDest = getClientSocket(buffer.pseudo); // socket du destinataire
+        newBuffer.type = 1;
+        strcpy(newBuffer.pseudo, getClientPseudo(sock));
+        strcpy(newBuffer.message, buffer.message);
+        write(sockDest,(char*) &newBuffer,sizeof(newBuffer));
+        break;
 
-      case 2 : // Type = 2 : Déconnexion
+      /**
+       * Type = 2 : Déconnexion
+       * PSeudo -> vide
+       * Message -> vide
+       */ 
+      case 2 : 
         supprimerClient (sock);
         break;
 
-      default : // envoyer erreur
+      default : 
+      // envoyer erreur
       break;
       
 
@@ -128,23 +152,10 @@ void *traitementConnexion (void *socket){
     
 }
 
-/*char *lecturePseudoBuffer(char buffer[]){
-        char *result;
-        result = malloc((15+1)*sizeof(char)); // allocation taille 15 caractère
-        int i = 1;
-        while (buffer[i] != '\0' && buffer[i] != ' ' && i <= 14){
-
-                    result[i-1] = buffer[i];
-                    ++i;
-                    
-            }
-        result[i]="\0";
-        return result;
-}*/
-
+/** Methode pour ajouter le client avec son socket et son pseudo dans la liste des clients connectes */
 void ajouterClient(char pseudo[], int sock){
     struct chatClient newClient;
-    newClient.pseudo = pseudo;
+    strcpy(newClient.pseudo,pseudo);
     newClient.socket = sock;
     clients[nbClientCo]=newClient;
     ++ nbClientCo;
@@ -168,6 +179,7 @@ void supprimerClient(int sock){
     --nbClientCo;
 }
 
+/** Methode pour recuperer le numero de socket a partir du pseudo dans la liste des clients connectes */
 int getClientSocket(char pseudo[]){
   int i=0;
   int sockRes;
@@ -180,6 +192,18 @@ int getClientSocket(char pseudo[]){
     sockRes=-1;
   }
   return sockRes;
+}
+
+char *getClientPseudo(int sock){
+  char *pseudo;
+  int i=0;
+  while(clients[i].socket != sock && i<nbClientCo){
+     ++i;
+  }
+  if(i<nbClientCo){
+   strcpy(pseudo,clients[i].pseudo);
+  }
+  return pseudo;
 }
 
 /*------------------------------------------------------*/
