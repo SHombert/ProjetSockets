@@ -18,6 +18,7 @@ typedef struct sockaddr_in sockaddr_in;
 typedef struct hostent hostent;
 typedef struct servent servent;
 
+
 /* Structure client connecté */
 
 typedef struct chatClient
@@ -37,13 +38,11 @@ typedef struct msg
 
 /* Structure liste clients */
 
-typedef struct list 
+typedef struct listCos 
 {
-  //char listePseudos[][];
+  char listePseudos[MAX_LOGGED][15];
 
-};
-
-//read(descripteurSocket,(char* )&grille,sizeof(grille));
+};// envoi de la liste des connectés lors de la connexion d'un client + si demande explicite
 
 
 /**** Declaration procédures *****/
@@ -57,7 +56,8 @@ char *getClientPseudo(int sock);
 
 /* Tableau de clients connectés */
 
-struct chatClient clients[MAX_LOGGED];
+struct chatClient clients[MAX_LOGGED]; // tableau des structs socket/pseudo
+struct listCos pseudosClients;
 int nbClientCo;
 
 /** 
@@ -104,7 +104,7 @@ void ecoute (int listeningSocket){
  */
 void *traitementConnexion (void *socket){
 
-   int sock = *(int*)socket;
+    int sock = *(int*)socket;
     struct msg buffer, newBuffer;
     int longueur, sockDest, success;
    
@@ -123,12 +123,13 @@ void *traitementConnexion (void *socket){
       case 0 : 
         if(nbClientCo < 150) {
           success = ajouterClient(buffer.pseudo,sock);
+          write(sock,(char*) &pseudosClients,sizeof(newBuffer)); // Renvoi de la liste des clients connectés
           if (success == -1){ // Si pseudo deja utilise
             newBuffer.type = 6;
             write(sock,(char*) &newBuffer,sizeof(newBuffer));
           }
         }else{
-          // si taille max atteinte, envoie message erreur
+          // si taille max atteinte, envoi message erreur
           newBuffer.type = 5;
           write(sock,(char*) &newBuffer,sizeof(newBuffer));
         }
@@ -163,12 +164,21 @@ void *traitementConnexion (void *socket){
         break;
 
       /**
+       * Type = 3
+       * Pseudo -> vide
+       * Message -> vide
+       */
+      case 3 : 
+        write(sock,(char*) &pseudosClients,sizeof(newBuffer)); // Renvoi de la liste des clients connectés
+        break;
+
+      /**
        * Type inconnu
        * Envoie de message erreur
        */
       default : 
         newBuffer.type = 8;
-        write(sockDest,(char*) &newBuffer,sizeof(newBuffer));
+        write(sock,(char*) &newBuffer,sizeof(newBuffer));
     }
     
 }
@@ -182,11 +192,12 @@ int ajouterClient(char pseudo[], int sock){
     while(clients[i].pseudo != pseudo && i<nbClientCo){
       ++i;
     }
-    if(i<nbClientCo){
+    if(i==nbClientCo){ // On n'a pas trouvé le pseudo, on peut ajouter le client
       struct chatClient newClient;
       strcpy(newClient.pseudo,pseudo);
       newClient.socket = sock;
       clients[nbClientCo]=newClient;
+      strycpy(clients[nbClientCo].pseudo,pseudosClients.listePseudos[nbClientCo]);
       ++ nbClientCo;
       return 0;
     }else{
@@ -194,7 +205,9 @@ int ajouterClient(char pseudo[], int sock){
     }
 }
 
-/** Tableau sans cade vide ==> on trouve le client à supprimer, et on décale tous les suivants d'un cran vers la gauche */
+/** 
+ * Méthode pour supprimer le client de notre tableau de clients connectés lorsqu'il se déconnecte
+ * Tableau sans cade vide ==> on trouve le client à supprimer, et on décale tous les suivants d'un cran vers la gauche */
 void supprimerClient(int sock){
     int indexClient=0;
     int i=0;
@@ -208,6 +221,7 @@ void supprimerClient(int sock){
     }
     while(i<nbClientCo){
       clients[i-1]=clients[i];
+      strycpy(clients[i].pseudo,pseudosClients.listePseudos[i-1]);   
     }
     --nbClientCo;
 }
@@ -227,6 +241,7 @@ int getClientSocket(char pseudo[]){
   return sockRes;
 }
 
+/** Méthode pour récupérer le pseudo du client à partir du numéro de socket */
 char *getClientPseudo(int sock){
   char *pseudo;
   int i=0;
