@@ -29,11 +29,12 @@ typedef struct _list
     char listePseudo[Max_LOGGED][15];
 };
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Type de Procédure ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
-void Connection ();
+void Connection (char pseudo [15]);
 void SendAMessage ();
 void Disconnection ();
 int verificationId(char pseudo [15]);
 void readConnect ();
+static void Listening ();
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Programme Principal ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
@@ -86,6 +87,7 @@ int main(int argc, char **argv) {
      } while (valid = 1);
 
     Connection(pseudoTemp);   //envoie de la connetion au serveur
+    Listening();
 
     readConnect (); //lecture et affichage de la liste, envoyé par le serveur,  des clients connectés 
 
@@ -107,29 +109,7 @@ int main(int argc, char **argv) {
         case 2: Disconnection;
         break;
     }
-    //<<=
-
-    //envoie message
-    /* envoi du message vers le serveur */
-    if ((write(socket_descriptor, mesg, strlen(mesg))) < 0) {
-	perror("erreur : impossible d'ecrire le message destine au serveur.");
-	exit(1);
-    }
-    
-    //en boucle pour lecture messages entrant
-    /* lecture de la reponse en provenance du serveur */
-    while((longueur = read(socket_descriptor, buffer, sizeof(buffer))) > 0) {
-	printf("reponse du serveur : \n");
-	write(1,buffer,longueur);
-    }
-    printf("Vous quittez le chat féminin , au revoir et à bientôt !\n");
-    // déconnection
-    printf("\nfin de la reception.\n");
-    
-    close(socket_descriptor);
-    
-    printf("connexion avec le serveur fermee, fin du programme.\n");
-    
+    //<<=    
     exit(0);
 }
 
@@ -137,7 +117,15 @@ int main(int argc, char **argv) {
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Définition des fonctions ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 //Fonction d'écoute par le client
-//static void 
+static void Listening ()  {
+    //en boucle pour lecture messages entrant
+    /* lecture de la reponse en provenance du serveur */
+    while((longueur = read(socket_descriptor, buffer, sizeof(buffer))) > 0) {
+	printf("reponse du serveur : \n");
+	write(1,buffer,longueur);
+    }
+};
+
 
 
 int verificationId(char pseudoTemp[15], struc msg)
@@ -234,7 +222,8 @@ void Disconnection ()
     write(sockPipe, (char*)&msg, sizeof(msg));
 
     printf("\nfin de la reception.\n");
-    
+    printf("Vous quittez le chat féminin , au revoir et à bientôt !\n");
+        
     close(socket_descriptor);
     
     printf("connexion avec le serveur fermee, fin du programme.\n");
