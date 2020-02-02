@@ -17,6 +17,8 @@ client <adresse-serveur> <message-a-transmettre>
 #define TAILLE_MAX_MESS 256
 #define TAILLE_MAX_PSEUDO 15
 #define MAX_LOGGED 150
+#define h_addr h_addr_list[0]
+
 
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Prototype ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 typedef struct sockaddr sockaddr;

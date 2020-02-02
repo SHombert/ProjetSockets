@@ -13,6 +13,7 @@ Serveur à lancer avant le client
 #define TAILLE_MAX_MESS 256
 #define TAILLE_MAX_PSEUDO 15
 #define MAX_LOGGED 150
+#define h_addr h_addr_list[0]
 
 typedef struct sockaddr sockaddr;
 typedef struct sockaddr_in sockaddr_in;
@@ -40,7 +41,7 @@ typedef struct msg
 
 typedef struct listCos
 {
-  char listePseudos[MAX_LOGGED][15];
+  char listePseudos[MAX_LOGGED][TAILLE_MAX_PSEUDO];
   int nbCo;
 
 }; // envoi de la liste des connectés lors de la connexion d'un client + si demande explicite
@@ -71,7 +72,7 @@ void ecoute(int listeningSocket)
   int longueur_adresse_courante,
       new_socket;
   sockaddr_in adresse_client_courant;
-
+  printf("en attente de messages client");
   /* attente des connexions et traitement des donnees recues */
   for (;;)
   {
@@ -84,17 +85,17 @@ void ecoute(int listeningSocket)
                     (sockaddr *)(&adresse_client_courant),
                     &longueur_adresse_courante)) < 0)
     {
-      perror("erreur : impossible d'accepter la connexion avec le client.");
-      exit(1);
     }
-
-    pthread_t thread1_id;
-    // passer le socket en pointeur nul
-    int retour = pthread_create(&thread1_id, NULL, traitementConnexion, (void *)&new_socket);
-    if (retour != 0)
+    else
     {
-      perror("Erreur lors de la création du thread");
-      exit(1);
+      pthread_t thread1_id;
+      // passer le socket en pointeur nul
+      int retour = pthread_create(&thread1_id, NULL, traitementConnexion, (void *)&new_socket);
+      if (retour != 0)
+      {
+        perror("Erreur lors de la création du thread");
+        exit(1);
+      }
     }
   }
 }
@@ -104,16 +105,18 @@ void ecoute(int listeningSocket)
  */
 void *traitementConnexion(void *socket)
 {
-
   int sock = *(int *)socket;
   struct msg buffer, newBuffer;
   int longueur, sockDest, success, connected;
   connected = 1;
 
-  while (connected)
+  while (connected==1)
   {
-    while((longueur = read(sock, (char *)&buffer, sizeof(buffer))) <= 0){}
-      
+    while ((longueur = read(sock, (char *)&buffer, sizeof(buffer))) <= 0)
+    {
+    }
+    printf("traitement connexion, type = %d \n", buffer.type);
+    fflush(stdout);
     //char* pseudo;
     switch (buffer.type)
     {
@@ -126,6 +129,8 @@ void *traitementConnexion(void *socket)
     case 0:
       if (nbClientCo < 150)
       {
+        printf("%s \n",buffer.pseudo);
+        fflush(stdout);
         success = ajouterClient(buffer.pseudo, sock);
         if (success == -1)
         { // Si pseudo deja utilise, message erreur
@@ -136,7 +141,9 @@ void *traitementConnexion(void *socket)
         {
           newBuffer.type = 0;
           write(sock, (char *)&newBuffer, sizeof(newBuffer));      // Acquittement connexion
-          write(sock, (char *)&pseudosClients, sizeof(newBuffer)); // Renvoi de la liste des clients connectés
+          pseudosClients.nbCo=nbClientCo;
+          printf("nbCo : %d\n",pseudosClients.nbCo);
+          write(sock, (char *)&pseudosClients, sizeof(pseudosClients)); // Renvoi de la liste des clients connectés
         }
       }
       else
@@ -155,11 +162,13 @@ void *traitementConnexion(void *socket)
        * Message -> message a envoyer
        */
     case 1:
-
       sockDest = getClientSocket(buffer.pseudo); // socket du destinataire
       if (sockDest != -1)
       { // si pseudo trouve
         newBuffer.type = 1;
+
+        // TODO, erreur lorsqu'on enleve le printf en dessous, segmentation fault ?
+        printf("dans le si pseudo trouvé \n");
         strcpy(newBuffer.pseudo, getClientPseudo(sock));
         strcpy(newBuffer.message, buffer.message);
       }
@@ -167,6 +176,11 @@ void *traitementConnexion(void *socket)
       {
         newBuffer.type = 7; // sinon message erreur
       }
+      printf("Pseudo dest : %s | ",buffer.pseudo);
+      //  printf("sock dest : %d | ",sockDest);
+       // printf("Pseudo envoi : %s |",newBuffer.pseudo);
+      //printf("sock envoi : %s |",sock);
+       
       write(sockDest, (char *)&newBuffer, sizeof(newBuffer));
       break;
 
@@ -186,6 +200,7 @@ void *traitementConnexion(void *socket)
        * Message -> vide
        */
     case 3:
+      pseudosClients.nbCo=nbClientCo;
       write(sock, (char *)&pseudosClients, sizeof(newBuffer)); // Renvoi de la liste des clients connectés
       break;
 
@@ -218,9 +233,9 @@ int ajouterClient(char pseudo[], int sock)
     strcpy(newClient.pseudo, pseudo);
     newClient.socket = sock;
     clients[nbClientCo] = newClient;
-    strcpy(clients[nbClientCo].pseudo, pseudosClients.listePseudos[nbClientCo]);
-    pseudosClients.nbCo = nbClientCo;
+    strcpy(pseudosClients.listePseudos[nbClientCo],clients[nbClientCo].pseudo);
     ++nbClientCo;
+    readConnect();
     return 0;
   }
   else
@@ -228,6 +243,19 @@ int ajouterClient(char pseudo[], int sock)
     return -1;
   }
 }
+void readConnect()
+        {
+                int i = 0;
+                printf("===========================\n");
+                printf("Utilisateurs connectés :\n");
+                while (i < nbClientCo)
+                {
+                        printf("%s\n", clients[i].pseudo);
+                        i++;
+                }
+                printf("===========================\n");
+                fflush(stdout);
+        }
 
 /** 
  * Méthode pour supprimer le client de notre tableau de clients connectés lorsqu'il se déconnecte
@@ -239,7 +267,7 @@ void supprimerClient(int sock)
   int trouve = 0;
   while (!trouve && i < MAX_LOGGED)
   {
-    if (clients[i].socket = sock)
+    if (clients[i].socket == sock)
     {
       trouve = 1;
       indexClient = i;
@@ -252,7 +280,7 @@ void supprimerClient(int sock)
     strcpy(clients[i].pseudo, pseudosClients.listePseudos[i - 1]);
   }
   --nbClientCo;
-   pseudosClients.nbCo = nbClientCo;
+  pseudosClients.nbCo = nbClientCo;
 }
 
 /** Methode pour recuperer le numero de socket a partir du pseudo dans la liste des clients connectes */
@@ -260,7 +288,7 @@ int getClientSocket(char pseudo[])
 {
   int i = 0;
   int sockRes;
-  while (clients[i].pseudo != pseudo && i < nbClientCo)
+  while (strcmp(clients[i].pseudo,pseudo)!=0 && i < nbClientCo)
   {
     ++i;
   }
@@ -301,11 +329,11 @@ main(int argc, char **argv)
 
   sockaddr_in adresse_locale; /* structure d'adresse locale*/
 
-  hostent *ptr_hote;                /* les infos recuperees sur la machine hote */
-  servent *ptr_service;             /* les infos recuperees sur le service de la machine */
-  char machine[TAILLE_MAX_NOM + 1]; /* nom de la machine locale */
+  hostent *ptr_hote;                 /* les infos recuperees sur la machine hote */
+  servent *ptr_service;              /* les infos recuperees sur le service de la machine */
+  char machine[TAILLE_MAX_MESS + 1]; /* nom de la machine locale */
 
-  gethostname(machine, TAILLE_MAX_NOM); /* recuperation du nom de la machine */
+  gethostname(machine, TAILLE_MAX_MESS); /* recuperation du nom de la machine */
 
   /* recuperation de la structure d'adresse en utilisant le nom */
   if ((ptr_hote = gethostbyname(machine)) == NULL)
@@ -340,10 +368,7 @@ main(int argc, char **argv)
     perror("erreur : impossible de lier la socket a l'adresse de connexion.");
     exit(1);
   }
-
-  /* initialisation de la file d'ecoute */
-  listen(socket_descriptor, 5);
-
+  listen(socket_descriptor,5);
   /*-----------------------------------------------------------*/
   ecoute(socket_descriptor);
 }
