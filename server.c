@@ -72,7 +72,7 @@ void ecoute(int listeningSocket)
   int longueur_adresse_courante,
       new_socket;
   sockaddr_in adresse_client_courant;
-  printf("en attente de messages client");
+  printf("en attente de messages client\n");
   /* attente des connexions et traitement des donnees recues */
   for (;;)
   {
@@ -115,7 +115,7 @@ void *traitementConnexion(void *socket)
     while ((longueur = read(sock, (char *)&buffer, sizeof(buffer))) <= 0)
     {
     }
-    printf("traitement connexion, type = %d \n", buffer.type);
+    printf("Traitement connexion, type = %d \n", buffer.type);
     fflush(stdout);
     //char* pseudo;
     switch (buffer.type)
@@ -129,8 +129,6 @@ void *traitementConnexion(void *socket)
     case 0:
       if (nbClientCo < 150)
       {
-        printf("%s \n",buffer.pseudo);
-        fflush(stdout);
         success = ajouterClient(buffer.pseudo, sock);
         if (success == -1)
         { // Si pseudo deja utilise, message erreur
@@ -176,11 +174,7 @@ void *traitementConnexion(void *socket)
       {
         newBuffer.type = 7; // sinon message erreur
       }
-      printf("Pseudo dest : %s | ",buffer.pseudo);
-      //  printf("sock dest : %d | ",sockDest);
-       // printf("Pseudo envoi : %s |",newBuffer.pseudo);
-      //printf("sock envoi : %s |",sock);
-       
+      
       write(sockDest, (char *)&newBuffer, sizeof(newBuffer));
       break;
 
@@ -201,7 +195,7 @@ void *traitementConnexion(void *socket)
        */
     case 3:
       pseudosClients.nbCo=nbClientCo;
-      write(sock, (char *)&pseudosClients, sizeof(newBuffer)); // Renvoi de la liste des clients connectés
+      write(sock, (char *)&pseudosClients, sizeof(pseudosClients)); // Renvoi de la liste des clients connectés
       break;
 
     /**
@@ -223,10 +217,11 @@ void *traitementConnexion(void *socket)
 int ajouterClient(char pseudo[], int sock)
 {
   int i = 0;
-  while (clients[i].pseudo != pseudo && i < nbClientCo)
+  while ( i < nbClientCo && strcmp(clients[i].pseudo,pseudo) != 0)
   {
     ++i;
   }
+
   if (i == nbClientCo)
   { // On n'a pas trouvé le pseudo, on peut ajouter le client
     struct chatClient newClient;

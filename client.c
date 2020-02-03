@@ -54,6 +54,8 @@ int socket_descriptor;  /* descripteur de socket */
 struct _list pseudoCos; /* Liste des utilisateurs connectés */
 
 char pseudo[TAILLE_MAX_PSEUDO];
+char destRegistred[TAILLE_MAX_PSEUDO];
+int isDest;
 struct _msg bufferServ, bufferCli; // Buffer des sockets
 
 sockaddr_in adresse_locale; /* structure d'adresse locale*/
@@ -68,13 +70,14 @@ int main(int argc, char **argv)
         char *buffer;                // Buffer de l'entrée std
         char *mess, *pseudoDest;     // message entré par l'utilisateur
         char pseudoTemp[TAILLE_MAX_PSEUDO];
+
         int connected, typeRet;
         fd_set rdfs;
 
         /*Corps de l'algo*/
         connected = 1; // Permet de quitter l'écoute lorsque passé à zéro
-
-        printf("Bonjour ! Bienvenue sur le chat 100\% féminin ! /n");
+        isDest = 0;
+        printf("Bonjour ! Bienvenue sur le chat féminin ! \n");
 
         // Demande du pseudo
         do
@@ -82,13 +85,13 @@ int main(int argc, char **argv)
                 printf("Quel est votre pseudo de connexion ? 15 caractères maximum \n");
                 scanf("%s", pseudoTemp);
                 longueur = strlen(pseudoTemp);
-                if (longueur > 16)
+                if (longueur > 15)
                 {
-                        printf("pseudo trop long");
+                        printf("Pseudo trop long \n");
                 }
 
-        } while (longueur > 16);
-        printf("Vous avez rentré : %s", pseudoTemp);
+        } while (longueur > 15);
+        printf("Vous avez entré : %s. \n", pseudoTemp);
 
         // Demande de connexion au serveur
         typeRet = connection(pseudoTemp);
@@ -101,13 +104,24 @@ int main(int argc, char **argv)
                 connected = 0;
                 break;
         case 6:
-                printf("Le pseudo est déjà utilisé.");
-                // askPseudo
+                printf("Le pseudo est déjà utilisé. ");
+                do
+                {
+                        printf("Veuillez entrer un nouveau pseudo (15 caractères maximum). \n");
+                        scanf("%s", pseudoTemp);
+                        longueur = strlen(pseudoTemp);
+                        if (longueur > 15)
+                        {
+                                printf("Pseudo trop long\n");
+                        }
+
+                } while (longueur > 15);
                 break;
         case 0:
                 printf("Vous êtes connecté au chat ! \n");
                 printf("--> Pour quitter, tapez q. \n");
-                printf("--> Pour envoyer un message, tapez 'send'.\n");
+                printf("--> Pour commencer une conversation avec un utilisateur, tapez '+send'. Recommencez si vous souhaitez changer d'interlocuteur. \n");
+                printf("--> Pour mettre à jour les utilisateurs connectés, tapez '+liste'.\n");
                 strcpy(pseudo, pseudoTemp);
                 break;
 
@@ -141,50 +155,69 @@ int main(int argc, char **argv)
                         {
                                 disconnection();
                         }
-                        else if (strcmp(buffer, "send") == 0)
+                        else if (strcmp(buffer, "+send") == 0)
                         {
 
                                 bufferCli.type = 1;
                                 printf("Pseudo destinataire : ");
                                 longueurStdin = lire(buffer, TAILLE_MAX_MESS);
                                 strcpy(bufferCli.pseudo, buffer);
+                                strcpy(destRegistred, buffer);
+                                isDest = 1;
+                                printf("Vous commencez la conversation avec %s ... \n", destRegistred);
                                 //fgets(pseudoDest,TAILLE_MAX_PSEUDO,stdin);
                                 //longueurStdin = lire(pseudoDest,TAILLE_MAX_PSEUDO);
                                 //scanf("%s", bufferCli.pseudo);
-
-                                printf("\n");
-                                printf("Message : ");
-                                longueurStdin = lire(buffer, TAILLE_MAX_MESS);
-                                strcpy(bufferCli.message, buffer);
-                                printf("\n");
-
-                                //longueurStdin = lire(mess,TAILLE_MAX_MESS);
+                        }
+                        else if (strcmp(buffer, "+liste") == 0)
+                        {
+                                bufferCli.type = 3;
                                 write(socket_descriptor, (char *)&bufferCli, sizeof(bufferCli));
+                                if (longueur = read(socket_descriptor, (char *)&pseudoCos, sizeof(pseudoCos)) > 0)
+                                {
+                                        readConnect();
+                                }
+                        }
+                        // Si destinataire enregistré, lecture directe du message
+                        else if (isDest == 1)
+                        {
+                                
+                                if (strcmp(buffer, "\0") != 0) // On évite d'envoyer des sauts de lignes
+                                {
+                                        bufferCli.type = 1;
+                                        strcpy(bufferCli.message, buffer);
+                                        strcpy(bufferCli.pseudo, destRegistred);
+                                        write(socket_descriptor, (char *)&bufferCli, sizeof(bufferCli));
+                                }
                         }
                 }
                 // Cas d'un message du serveur entrant
                 else if (FD_ISSET(socket_descriptor, &rdfs))
                 {
+
                         longueur = read(socket_descriptor, (char *)&bufferServ, sizeof(bufferServ));
                         switch (bufferServ.type)
                         {
                         case 1: // reception d'un message
+                                if (strcmp(bufferServ.pseudo, destRegistred) != 0)
+                                {
+                                        strcpy(destRegistred, bufferServ.pseudo);
+                                        printf("Nouvelle conversation entrante avec %s : \n", destRegistred);
+                                        isDest = 1;
+                                }
                                 printf("%s a écrit : ", bufferServ.pseudo);
                                 printf("%s \n", bufferServ.message);
                                 break;
-
-                        case 7:
-                                printf("Il semblerait que le destinataire ne soit pas connecté au chat. Veuillez réessayer plus tard ou vérifier le pseudo. \n");
-                                break;
-
                         default:
                                 break;
                         }
-                        //printf("Server: ");
-                        //puts(buffer);
                 }
         }
 }
+
+/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Définition des fonctions ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 
 /*
 Méthodes de gestion d'entrée utilisateur via fgets
@@ -221,39 +254,11 @@ int lire(char *chaine, int longueur)
         }
 }
 
-/*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Définition des fonctions ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
-
-/**  int verificationId(char pseudoTemp[15], struc msg)
-        {
-                //lexique local
-                int valid = 0; //pseudo non utilisé si valid=0, utilisé si valid=1
-
-                //envoie pseudo server et attente reponse du server pour savoir si pseudo existe déjà.
-                msg->type = 0;
-                msg->pseudo = pseudoTemp;
-                write(sockPipe, (char *)&msg, sizeof(msg));
-
-                //lecture retour serveur
-                read(sockPipe, (char *)&msg, sizeof(msg));
-
-                //traitement
-                if (msg.type == 6)
-                {
-                        return valid;
-                }
-                else
-                {
-                        return valid = 1;
-                }
-        };*/
-
 /**
  *      Renvoie le type de message retourné par le serveur après la connexion 
  * 
  */
-int connection(char pseudo[15])
+int connection(char pseudo[TAILLE_MAX_PSEUDO])
 {
 
         host = "localhost";
@@ -303,7 +308,7 @@ void disconnection()
         write(socket_descriptor, (char *)&bufferCli, sizeof(bufferCli));
         printf("Vous quittez le chat féminin, au revoir et à bientôt !\n");
         close(socket_descriptor);
-        printf("connexion avec le serveur fermee, fin du programme.\n");
+        printf("Connexion avec le serveur fermée, fin du programme.\n");
         exit(0);
 };
 
@@ -316,7 +321,14 @@ void readConnect()
         printf("Utilisateurs connectés :\n");
         while (i < pseudoCos.nbCo)
         {
-                printf("%s\n", pseudoCos.listePseudos[i]);
+                if (strcmp(pseudo, pseudoCos.listePseudos[i]) == 0)
+                {
+                        printf(" * %s (vous) \n", pseudoCos.listePseudos[i]);
+                }
+                else
+                {
+                        printf(" * %s\n", pseudoCos.listePseudos[i]);
+                }
                 i++;
         }
         printf("===========================\n");
