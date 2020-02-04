@@ -12,8 +12,9 @@ Serveur à lancer avant le client
 
 #define TAILLE_MAX_MESS 256
 #define TAILLE_MAX_PSEUDO 15
-#define MAX_LOGGED 150
+#define MAX_LOGGED 3
 #define h_addr h_addr_list[0]
+#define PORT 5000
 
 typedef struct sockaddr sockaddr;
 typedef struct sockaddr_in sockaddr_in;
@@ -54,6 +55,7 @@ int ajouterClient(char *pseudo, int sock);
 void supprimerClient(int sock);
 int getClientSocket(char pseudo[]);
 char *getClientPseudo(int sock);
+void readConnect();
 
 /* Tableau de clients connectés */
 
@@ -127,7 +129,7 @@ void *traitementConnexion(void *socket)
        * Message -> vide
        */
     case 0:
-      if (nbClientCo < 150)
+      if (nbClientCo < MAX_LOGGED)
       {
         success = ajouterClient(buffer.pseudo, sock);
         if (success == -1)
@@ -140,7 +142,6 @@ void *traitementConnexion(void *socket)
           newBuffer.type = 0;
           write(sock, (char *)&newBuffer, sizeof(newBuffer));      // Acquittement connexion
           pseudosClients.nbCo=nbClientCo;
-          printf("nbCo : %d\n",pseudosClients.nbCo);
           write(sock, (char *)&pseudosClients, sizeof(pseudosClients)); // Renvoi de la liste des clients connectés
         }
       }
@@ -189,7 +190,7 @@ void *traitementConnexion(void *socket)
       break;
 
     /**
-       * Type = 3
+       * Type = 3 : Demande de mise à jour de la liste des utilisateurs
        * Pseudo -> vide
        * Message -> vide
        */
@@ -345,7 +346,7 @@ main(int argc, char **argv)
   adresse_locale.sin_addr.s_addr = INADDR_ANY;      /* ou AF_INET */
 
   /* Nouveau numero de port */
-  adresse_locale.sin_port = htons(5000);
+  adresse_locale.sin_port = htons(PORT);
 
   printf("numero de port pour la connexion au serveur : %d \n",
          ntohs(adresse_locale.sin_port) /*ntohs(ptr_service->s_port)*/);
