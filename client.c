@@ -121,6 +121,14 @@ int main(int argc, char **argv)
                                 printf("* Vous commencez la conversation avec %s ... \n", destRegistred);
                                 
                         }
+                        else if (strcmp(buffer, "+global") == 0)
+                        {
+                                printf("Message : ");
+                                longueurStdin = lire(buffer, TAILLE_MAX_MESS);
+                                bufferCli.type = 4;
+                                strcpy(bufferCli.message, buffer);
+                                write(socket_descriptor, (char *)&bufferCli, sizeof(bufferCli));
+                        }
                         else if (strcmp(buffer, "+liste") == 0)
                         {
                                 bufferCli.type = 3;
@@ -158,6 +166,10 @@ int main(int argc, char **argv)
                                         isDest = 1;
                                 }
                                 printf("%s a écrit : ", bufferServ.pseudo);
+                                printf("%s \n", bufferServ.message);
+                                break;
+                        case 4 :
+                                printf("%s a écrit (global): ", bufferServ.pseudo);
                                 printf("%s \n", bufferServ.message);
                                 break;
                         default:
@@ -208,6 +220,7 @@ void askPseudo()
                 printf("Vous êtes connecté au chat ! \n");
                 printf("--> Pour quitter, tapez q. \n");
                 printf("--> Pour commencer une conversation avec un utilisateur, tapez '+send'. Recommencez si vous souhaitez changer d'interlocuteur. \n");
+                printf("--> Pour envoyer un message global, tapez '+global'.\n");
                 printf("--> Pour mettre à jour les utilisateurs connectés, tapez '+liste'.\n");
                 strcpy(pseudo, pseudoTemp); // pseudo validé
                 break;

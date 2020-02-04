@@ -109,7 +109,8 @@ void *traitementConnexion(void *socket)
 {
   int sock = *(int *)socket;
   struct msg buffer, newBuffer;
-  int longueur, sockDest, success, connected;
+  int longueur, sockDest, success, connected, i;
+  char *pseudoTemp;
   connected = 1;
 
   while (connected==1)
@@ -199,6 +200,26 @@ void *traitementConnexion(void *socket)
       write(sock, (char *)&pseudosClients, sizeof(pseudosClients)); // Renvoi de la liste des clients connectés
       break;
 
+    /**
+     * Type = 4 : Message flobal
+     * Pseudo -> vide
+     * Message -> message à envoyer
+     * 
+     */
+    case 4:
+      i = 0;
+      newBuffer.type = 4;
+      printf("Message global \n");
+      pseudoTemp = getClientPseudo(sock);
+      strcpy(newBuffer.pseudo, pseudoTemp);
+      strcpy(newBuffer.message, buffer.message);
+      while(i<nbClientCo){
+        if(clients[i].socket != sock){
+          write(clients[i].socket, (char *)&newBuffer, sizeof(newBuffer));
+        }
+        ++i;
+      }
+      break;
     /**
        * Type inconnu
        * Envoie de message erreur
