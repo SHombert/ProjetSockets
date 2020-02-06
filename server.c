@@ -60,6 +60,7 @@ void readConnect();
 /* Tableau de clients connectés */
 
 struct chatClient clients[MAX_LOGGED]; // tableau des structs socket/pseudo
+
 struct listCos pseudosClients;
 int nbClientCo;
 
@@ -110,7 +111,6 @@ void *traitementConnexion(void *socket)
   int sock = *(int *)socket;
   struct msg buffer, newBuffer;
   int longueur, sockDest, success, connected, i;
-  char *pseudoTemp;
   connected = 1;
 
   while (connected==1)
@@ -166,9 +166,6 @@ void *traitementConnexion(void *socket)
       if (sockDest != -1)
       { // si pseudo trouve
         newBuffer.type = 1;
-
-        // TODO, erreur lorsqu'on enleve le printf en dessous, segmentation fault ?
-        printf("dans le si pseudo trouvé \n");
         strcpy(newBuffer.pseudo, getClientPseudo(sock));
         strcpy(newBuffer.message, buffer.message);
       }
@@ -209,9 +206,7 @@ void *traitementConnexion(void *socket)
     case 4:
       i = 0;
       newBuffer.type = 4;
-      printf("Message global \n");
-      pseudoTemp = getClientPseudo(sock);
-      strcpy(newBuffer.pseudo, pseudoTemp);
+      strcpy(newBuffer.pseudo,getClientPseudo(sock));
       strcpy(newBuffer.message, buffer.message);
       while(i<nbClientCo){
         if(clients[i].socket != sock){
@@ -282,7 +277,7 @@ void supprimerClient(int sock)
   int indexClient = 0;
   int i = 0;
   int trouve = 0;
-  while (!trouve && i < MAX_LOGGED)
+  while (!trouve && i < nbClientCo)
   {
     if (clients[i].socket == sock)
     {
@@ -290,14 +285,17 @@ void supprimerClient(int sock)
       indexClient = i;
     }
     i++;
+    
+
   }
+
   while (i < nbClientCo)
   {
     clients[i - 1] = clients[i];
-    strcpy(clients[i].pseudo, pseudosClients.listePseudos[i - 1]);
+    strcpy(pseudosClients.listePseudos[i - 1],clients[i].pseudo);
+    ++i;
   }
   --nbClientCo;
-  pseudosClients.nbCo = nbClientCo;
 }
 
 /** Methode pour recuperer le numero de socket a partir du pseudo dans la liste des clients connectes */
@@ -324,6 +322,7 @@ int getClientSocket(char pseudo[])
 char *getClientPseudo(int sock)
 {
   char *pseudo;
+  pseudo=malloc(TAILLE_MAX_PSEUDO);
   int i = 0;
   while (clients[i].socket != sock && i < nbClientCo)
   {

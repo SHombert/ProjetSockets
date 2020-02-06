@@ -210,6 +210,7 @@ void askPseudo()
         switch (typeRet)
         {
         case 5:
+                printf("Le nombre max d'utilisateurs est atteint. Veuillez réessayer ultérieurement.\n");
                 disconnection(0);
                 break;
         case 6:
